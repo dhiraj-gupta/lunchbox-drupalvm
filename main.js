@@ -10,6 +10,8 @@ var DrupalVM = function (plugin, dialog) {
   // call parent constructor
   LunchboxPlugin.call(this, plugin, dialog);
 
+  this.addCSS('css/drupalvm.css');
+
   // set default plugin settings
   if (!this.plugin.settings) {
     this.plugin.settings = {
@@ -27,8 +29,8 @@ var DrupalVM = function (plugin, dialog) {
   if (global_notices.length) {
     global_notices.append('<div id="' + this.gn_name + '"></div>');
 
-    var template =  '<div class="reprovision-alert" class="alert alert-warning" style="display: none;" role="alert">';
-        template +=   this.plugin.name_nice + ' needs to be re-provisioned with your new settings. ';
+    var template =  '<div class="reprovision-alert alert alert-warning" style="display: none;" role="alert">';
+        template +=   '<strong>' + this.plugin.name_nice + '</strong> needs to be re-provisioned with your new settings. ';
         template +=   '<a href="#" id="reprovision-trigger">Run this now.</a>';
         template += '</div>';
 
