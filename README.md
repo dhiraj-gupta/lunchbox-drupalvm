@@ -1,3 +1,3 @@
 ## DrupalVM
 
-This is a plugin for the core https://github.com/LunchboxDevTools/lunchbox project.
+This is a plugin for the core [Lunchbox](https://github.com/LunchboxDevTools/lunchbox) project.
