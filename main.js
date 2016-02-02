@@ -130,7 +130,6 @@ DrupalVM.prototype.getNav = function () {
   };
 
   return nav;
-
 };
 
 module.exports = DrupalVM;

@@ -1,5 +1,4 @@
 var Q = require('q');
-var yaml = require('yamljs');
 var os = require('os');
 
 // implementations of bootup procedures
@@ -326,10 +325,19 @@ var boot = {
           self.plugin.settings.vm.state = parts[3];
           self.plugin.settings.vm.home = parts[4];
 
-          var config_file = self.plugin.settings.vm.home + '/config.yml';
-          self.plugin.settings.vm.config = yaml.load(config_file);
+          // this is a complex object, so both json's and yaml's stringify
+          // methods will return an empty string for it, and it won't be written
+          // to the parent settings file; convenient - in this case
+          self.plugin.settings.vm.config = new GenericSettings(self.plugin.settings.vm.home + '/config.yml');
+          self.plugin.settings.vm.config.load(function (error, data) {
+            if (error !== null) {
+              deferred.reject(error);
+              return;
+            }
 
-          deferred.resolve();
+            deferred.resolve();
+          });
+
           return;
         }
       }
