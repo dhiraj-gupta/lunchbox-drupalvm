@@ -4,26 +4,6 @@ var os = require('os');
 // implementations of bootup procedures
 var boot = {
   /**
-   * Checks provision status and shows reprovision notice.
-   * 
-   * @param  {[type]} dialog [description]
-   * @return {[type]}        [description]
-   */
-  checkProvisionStatus: function (dialog) {
-    var deferred = Q.defer();
-
-    this.logDialog('Checking provision status.');
-
-    if (this.vm.needs_reprovision) {
-      this.showReprovisionNotice();
-    }
-
-    deferred.resolve();
-
-    return deferred.promise;
-  },
-
-  /**
    * Runs through a series of Promise-based checks against npm and general
    * software dependencies. 
    * 
@@ -287,79 +267,39 @@ var boot = {
   },
 
   /**
-   * Sets vagrant-related variables based on output of "vagrant global-status"
+   * Detects drupalvm VM.
    * 
    * @param  {[type]} dialog [description]
    * @return {[type]}        [description]
    */
-  detectDrupalVM: function (dialog) {
-    var self = this;
-    var deferred = Q.defer();
-
+  detectVM: function (dialog) {
     this.logDialog('Looking for VM.');
 
-    this.vm.detect().then(function () {
-      self.logDialog('Found VM.');
-
-      // load VM's settings
-      self.vm.config = new GenericSettings(self.vm.home + '/config.yml');
-      self.vm.config.load(function (error, data) {
-        if (error !== null) {
-          deferred.reject(error);
-          return;
-        }
-
-        deferred.resolve();
-      });
-    }).catch (function (error) {
-      console.log('Error: ' + error);
-    });
-
-    return deferred.promise;
+    return this.detect();
   },
 
   /**
-   * Updates UI running status based on output of "vagrant status drupalvm"
+   * Loads VM config file.
+   * 
+   * @param  {[type]} dialog [description]
+   * @return {[type]}        [description]
+   */
+  loadVMConfig: function (dialog) {
+    this.logDialog('Loading VM config.')
+
+    return this.loadConfig();
+  },
+
+  /**
+   * Checks VM status.
    
    * @param  {[type]} dialog [description]
    * @return {[type]}        [description]
    */
-  updateVMStatus: function (dialog) {
-    var deferred = Q.defer();
-
+  checkVMStatus: function (dialog) {
     this.logDialog('Checking VM status.');
 
-    // Check if DrupalVM is running
-    var spawn = require('child_process').spawn;
-    var child = spawn('vagrant', ['status', this.vm.id]);
-
-    var stdout = '';
-    dialog.logProcess(child, function (output) {
-      stdout += output;
-    }, false);
-
-    child.on('exit', function (exitCode) {
-      // Search for the status
-      if (stdout.indexOf('poweroff') > -1) {
-        $('#drupalvm_start').removeClass('disabled');
-        $('#drupalvm_stop').addClass('disabled');
-        $('.drupalVMHeaderStatus').text("Stopped");
-
-        drupalvm_running = false;
-      }
-      else {
-        $('#drupalvm_start').addClass('disabled');
-        $('#drupalvm_stop').removeClass('disabled');
-        $('.drupalVMHeaderStatus').text("Running");
-
-        drupalvm_running = true;
-      }
-
-      deferred.resolve();
-      dialog.setProgress(100);
-    });
-
-    return deferred.promise;
+    return this.checkStatus();
   }
 };
 

@@ -2,7 +2,7 @@ $(document).ready(function () {
   console.log('loaded settings.js in DrupalVM plugin');
 
   var drupalvm = window.active_plugin;
-  var vm_config = drupalvm.instance.vm.config;
+  var vm_config = drupalvm.config;
 
   // populate settings vm form
   var vagrant_ip = $("input[name=vagrant_ip]");
@@ -65,7 +65,7 @@ $(document).ready(function () {
 
     // reload view & show notice
     reloadCurrentView(function (error) {
-      drupalvm.instance.showReprovisionNotice();
+      drupalvm.showReprovisionNotice();
     });
   };
 

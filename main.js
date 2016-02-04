@@ -12,6 +12,7 @@ var DrupalVM = function (plugin, dialog) {
   // call parent constructor
   LunchboxPlugin.call(this, plugin, dialog);
 
+  // load CSS dependencies
   this.addCSS('css/drupalvm.css');
 
   // global notices wrapper dom name
@@ -30,6 +31,14 @@ var DrupalVM = function (plugin, dialog) {
     $('#' + this.gn_name).append(template);
   }
 
+  // possible VM states
+  this._STOPPED = 1;
+  this._RUNNING = 2;
+  this._NEEDS_REPROVISION = 4;
+
+  // default state
+  this.status = this._STOPPED;
+
   // set default settings structure
   if (!this.plugin.settings) {
     this.plugin.settings = {
@@ -37,7 +46,15 @@ var DrupalVM = function (plugin, dialog) {
     };
   }
 
-  this.vm = new VM(this);
+  // show the reprovision notice
+  if (this.plugin.settings.needs_reprovision) {
+    this.showReprovisionNotice();
+  }
+
+  // promises for later use
+  this.detected = Q.defer();
+  this.loadedConfig = Q.defer();
+  this.checkedStatus = Q.defer();
 };
 
 DrupalVM.prototype = Object.create(LunchboxPlugin.prototype);
@@ -50,10 +67,10 @@ DrupalVM.prototype.constructor = DrupalVM;
  */
 DrupalVM.prototype.getBootOps = function () {
   var operations = [
-    boot.checkProvisionStatus,
     boot.checkPrerequisites,
-    boot.detectDrupalVM,
-    boot.updateVMStatus
+    boot.detectVM,
+    boot.loadVMConfig
+    // , boot.checkVMStatus
   ];
 
   return operations;
@@ -65,7 +82,7 @@ DrupalVM.prototype.getBootOps = function () {
  * @return {[type]} [description]
  */
 DrupalVM.prototype.showReprovisionNotice = function () {
-  if (!this.vm.needs_reprovision) {
+  if (!this.plugin.settings.needs_reprovision) {
     this.setReprovision(true);
   }
 
@@ -78,7 +95,7 @@ DrupalVM.prototype.showReprovisionNotice = function () {
  * @return {[type]} [description]
  */
 DrupalVM.prototype.hideReprovisionNotice = function () {
-  if (this.vm.needs_reprovision) {
+  if (this.plugin.settings.needs_reprovision) {
     this.setReprovision(false);
   }
 
@@ -94,7 +111,7 @@ DrupalVM.prototype.hideReprovisionNotice = function () {
 DrupalVM.prototype.setReprovision = function (status, callback) {
   callback = callback || function () {};
 
-  this.vm.needs_reprovision = status;
+  this.plugin.settings.needs_reprovision = status;
 
   window.lunchbox.settings.save(callback);
 };
@@ -148,35 +165,15 @@ DrupalVM.prototype.preSave = function (settings) {
 };
 
 /**
- * VM Class. An instance of this is created in DrupalVM's constructor.
- * 
- * @param {[type]} drupalvm [description]
- */
-var VM = function (drupalvm) {
-  this.drupalvm = drupalvm;
-  this.plugin_settings = this.drupalvm.plugin.settings;
-
-  if (this.plugin_settings.needs_reprovision) {
-    this.showReprovisionNotice();
-  }
-};
-
-/**
- * Shows alert to reprovision the VM
+ * Sets vagrant-related variables based on output of "vagrant global-status"
  * 
  * @return {[type]} [description]
  */
-VM.prototype.showReprovisionNotice = function () {
-  console.log('called this');
-};
-
-VM.prototype.detect = function () {
-  var self = this;
-  var deferred = Q.defer();
-
+DrupalVM.prototype.detect = function () {
   var spawn = require('child_process').spawn;
   var child = spawn('vagrant', ['global-status']);
 
+  // save buffer output
   var stdout = '';
   var write = function (buffer) {
     stdout += buffer.toString('utf8');
@@ -185,9 +182,10 @@ VM.prototype.detect = function () {
   child.stdout.on('data', write);
   child.stderr.on('data', write);
 
+  var self = this;
   child.on('exit', function (exitCode) {
     if (exitCode !== 0) {
-      deferred.reject('Encountered problem while running "vagrant global-status".');
+      self.detected.reject('Encountered problem while running "vagrant global-status".');
       return;
     }
 
@@ -200,65 +198,95 @@ VM.prototype.detect = function () {
       if (parts.length >= 5 && parts[1] == 'drupalvm') {
         self.id = parts[0];
         self.name = parts[1];
-        self.state = parts[3];
+        self.state = parts[3] == 'running' ? self._RUNNING : self._STOPPED;
         self.home = parts[4];
 
-        deferred.resolve();
+        self.detected.resolve();
 
         return;
       }
     }
 
-    deferred.reject('Could not find "drupalvm" VM.');
+    self.detected.reject('Could not find "drupalvm" VM.');
   });
 
-  return deferred.promise;
+  return this.detected.promise;
 };
 
+/**
+ * Loads configuration file for current VM.
+ * 
+ * @return {[type]} [description]
+ */
+DrupalVM.prototype.loadConfig = function () {
+  var self = this;
 
+  // VM must first be detected so we have the home path
+  this.detected.promise.then(function () {
+    self.config = new GenericSettings(self.home + '/config.yml');
 
-// DrupalVM.prototype.vm = (function (plugin) {
-//   console.log('vm obj');
+    self.config.load(function (error, data) {
+      if (error !== null) {
+        self.loadedConfig.reject(error);
+        return;
+      }
 
+      self.loadedConfig.resolve();
+    });
+  });
 
-//   const STATE_STOPPED = 0;
-//   const STATE_RUNNING = 1;
-//   const STATE_NEEDS_REPROVISION = 2;
+  return this.loadedConfig.promise;
+};
 
-//   var state = STATE_STOPPED;
+/**
+ * Checks whether the VM is currently running or not.
+ * 
+ * @return {[type]} [description]
+ */
+DrupalVM.prototype.checkStatus = function () {
+  var self = this;
 
-//   function control (new_state) {
+  // VM must first be detected so we have its ID
+  this.detected.promise.then(function () {
+    var spawn = require('child_process').spawn;
+    var child = spawn('vagrant', ['status', self.id]);
 
-//   };
+    // save buffer output
+    var stdout = '';
+    var write = function (buffer) {
+      stdout += buffer.toString('utf8');
+    };
 
-//   return {
-//     /**
-//      * Checks VM status from the VM.
-//      * 
-//      * @return {[type]} [description]
-//      */
-//     getStatus: function () {
-//       var spawn = require('child_process').spawn;
-//       var child = spawn('vagrant', ['status', plugin.settings.vm.id]);
+    child.stdout.on('data', write);
+    child.stderr.on('data', write);
 
-//       var stdout = '';
-//       dialog.logProcess(child, function (output) {
-//         stdout += output;
-//       }, false);
-//     },
+    child.on('exit', function (exitCode) {
+      if (exitCode !== 0) {
+        self.checkedStatus.reject('Encountered problem while running "vagrant status".');
+        return;
+      }
 
-//     stop: function () {
-//       control(STATE_STOPPED);
-//     },
+      // Search for the status
+      if (stdout.indexOf('poweroff') > -1) {
+        $('#drupalvm_start').removeClass('disabled');
+        $('#drupalvm_stop').addClass('disabled');
+        $('.drupalVMHeaderStatus').text("Stopped");
 
-//     start: function () {
-//       control(STATE_RUNNING);
-//     },
+        drupalvm_running = false;
+      }
+      else {
+        $('#drupalvm_start').addClass('disabled');
+        $('#drupalvm_stop').removeClass('disabled');
+        $('.drupalVMHeaderStatus').text("Running");
 
-//     provision: function () {
-//       control(STATE_NEEDS_REPROVISION);
-//     }
-//   };
-// })(this);
+        drupalvm_running = true;
+      }
+
+      self.checkedStatus.resolve();
+    });
+  });
+
+  return this.checkedStatus.promise;
+};
 
 module.exports = DrupalVM;

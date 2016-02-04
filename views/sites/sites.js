@@ -4,7 +4,8 @@ $(document).ready(function () {
   console.log('loaded sites.js in DrupalVM plugin');
 
   var drupalvm = window.active_plugin;
-  var vm_config = drupalvm.instance.vm.config;
+  console.log(drupalvm);
+  var vm_config = drupalvm.config;
 
   settings = window.lunchbox.settings;
 

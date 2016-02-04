@@ -5,8 +5,6 @@ $(document).ready(function () {
 
   var drupalvm = window.active_plugin;
 
-  var vm = drupalvm.instance.vm;
-
-  console.log('vm:');
-  console.log(vm);
+  console.log('drupalvm:');
+  console.log(drupalvm);
 });
