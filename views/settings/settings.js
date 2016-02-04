@@ -1,12 +1,8 @@
-var storage = load_mod('internal/storage');
-
-var settings = null;
-
 $(document).ready(function () {
   console.log('loaded settings.js in DrupalVM plugin');
 
   var drupalvm = window.active_plugin;
-  var vm_config = drupalvm.settings.vm.config;
+  var vm_config = drupalvm.instance.vm.config;
 
   // populate settings vm form
   var vagrant_ip = $("input[name=vagrant_ip]");
@@ -61,16 +57,16 @@ $(document).ready(function () {
     });
   }
 
-  // callback for use with storage.save();
+  // callback for use with save() ops;
   var save_callback = function (error, data) {
     if (error !== null) {
       return;
     }
 
     // reload view & show notice
-    $('#nav-' + drupalvm.instance.unique_name + ' a[href*="settings.html"]').click();
-    
-    drupalvm.instance.showReprovisionNotice();
+    reloadCurrentView(function (error) {
+      drupalvm.instance.showReprovisionNotice();
+    });
   };
 
   // form actions

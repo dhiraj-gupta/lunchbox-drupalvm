@@ -14,7 +14,7 @@ var boot = {
 
     this.logDialog('Checking provision status.');
 
-    if (this.plugin.settings.vm.needs_reprovision) {
+    if (this.vm.needs_reprovision) {
       this.showReprovisionNotice();
     }
 
@@ -298,51 +298,21 @@ var boot = {
 
     this.logDialog('Looking for VM.');
 
-    var spawn = require('child_process').spawn;
-    var child = spawn('vagrant', ['global-status']);
+    this.vm.detect().then(function () {
+      self.logDialog('Found VM.');
 
-    var stdout = '';
-    dialog.logProcess(child, function (output) {
-      stdout += output;
-    }, false);
-
-    child.on('exit', function (exitCode) {
-      // Search for the drupalvm entry and parse it into global config variables
-      var lines = stdout.split("\n");
-      for (var x in lines) {
-        var parts = lines[x].split(/\s+/);
-
-        // simply checking for the presense of 'drupalvm' in the line can cause
-        // an issue if a non-drupalvm machine's filepath contains that string;
-        // we need to check the machine name itself
-
-        // Sample: d21e8e6  drupalvm virtualbox poweroff /home/nate/Projects/drupal-vm
-        if (parts.length >= 5 && parts[1] == 'drupalvm') {
-          self.logDialog('Found VM.');
-
-          self.plugin.settings.vm.id = parts[0];
-          self.plugin.settings.vm.name = parts[1];
-          self.plugin.settings.vm.state = parts[3];
-          self.plugin.settings.vm.home = parts[4];
-
-          // this is a complex object, so both json's and yaml's stringify
-          // methods will return an empty string for it, and it won't be written
-          // to the parent settings file; convenient - in this case
-          self.plugin.settings.vm.config = new GenericSettings(self.plugin.settings.vm.home + '/config.yml');
-          self.plugin.settings.vm.config.load(function (error, data) {
-            if (error !== null) {
-              deferred.reject(error);
-              return;
-            }
-
-            deferred.resolve();
-          });
-
+      // load VM's settings
+      self.vm.config = new GenericSettings(self.vm.home + '/config.yml');
+      self.vm.config.load(function (error, data) {
+        if (error !== null) {
+          deferred.reject(error);
           return;
         }
-      }
 
-      deferred.reject('Could not find "drupalvm" virtualbox.');
+        deferred.resolve();
+      });
+    }).catch (function (error) {
+      console.log('Error: ' + error);
     });
 
     return deferred.promise;
@@ -361,7 +331,7 @@ var boot = {
 
     // Check if DrupalVM is running
     var spawn = require('child_process').spawn;
-    var child = spawn('vagrant', ['status', this.plugin.settings.vm.id]);
+    var child = spawn('vagrant', ['status', this.vm.id]);
 
     var stdout = '';
     dialog.logProcess(child, function (output) {
