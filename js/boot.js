@@ -288,18 +288,6 @@ var boot = {
     this.logDialog('Loading VM config.')
 
     return this.loadConfig();
-  },
-
-  /**
-   * Checks VM status.
-   
-   * @param  {[type]} dialog [description]
-   * @return {[type]}        [description]
-   */
-  checkVMStatus: function (dialog) {
-    this.logDialog('Checking VM status.');
-
-    return this.checkStatus();
   }
 };
 

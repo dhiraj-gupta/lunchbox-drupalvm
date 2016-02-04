@@ -31,13 +31,13 @@ var DrupalVM = function (plugin, dialog) {
     $('#' + this.gn_name).append(template);
   }
 
-  // possible VM states
+  // possible VM states; binary flags
   this._STOPPED = 1;
   this._RUNNING = 2;
   this._NEEDS_REPROVISION = 4;
 
   // default state
-  this.status = this._STOPPED;
+  this.state = this._STOPPED;
 
   // set default settings structure
   if (!this.plugin.settings) {
@@ -54,7 +54,7 @@ var DrupalVM = function (plugin, dialog) {
   // promises for later use
   this.detected = Q.defer();
   this.loadedConfig = Q.defer();
-  this.checkedStatus = Q.defer();
+  this.checkedState = Q.defer();
 };
 
 DrupalVM.prototype = Object.create(LunchboxPlugin.prototype);
@@ -70,7 +70,6 @@ DrupalVM.prototype.getBootOps = function () {
     boot.checkPrerequisites,
     boot.detectVM,
     boot.loadVMConfig
-    // , boot.checkVMStatus
   ];
 
   return operations;
@@ -122,8 +121,10 @@ DrupalVM.prototype.setReprovision = function (status, callback) {
  * @return {[type]} [description]
  */
 DrupalVM.prototype.getNav = function () {
+  var status_text = this.state & this._RUNNING ? 'Running' : 'Stopped';
+
   var nav = {
-    title: 'Drupal VM',
+    title: 'Drupal VM <span class="drupalvm-status">' + status_text + '</span>',
     items: [
       {
         href: 'views/dashboard/dashboard.html',
@@ -243,7 +244,7 @@ DrupalVM.prototype.loadConfig = function () {
  * 
  * @return {[type]} [description]
  */
-DrupalVM.prototype.checkStatus = function () {
+DrupalVM.prototype.checkState = function () {
   var self = this;
 
   // VM must first be detected so we have its ID
@@ -262,31 +263,17 @@ DrupalVM.prototype.checkStatus = function () {
 
     child.on('exit', function (exitCode) {
       if (exitCode !== 0) {
-        self.checkedStatus.reject('Encountered problem while running "vagrant status".');
+        self.checkedState.reject('Encountered problem while running "vagrant status".');
         return;
       }
 
-      // Search for the status
-      if (stdout.indexOf('poweroff') > -1) {
-        $('#drupalvm_start').removeClass('disabled');
-        $('#drupalvm_stop').addClass('disabled');
-        $('.drupalVMHeaderStatus').text("Stopped");
+      self.state = (stdout.indexOf('running') !== -1) ? self._RUNNING : self._STOPPED;
 
-        drupalvm_running = false;
-      }
-      else {
-        $('#drupalvm_start').addClass('disabled');
-        $('#drupalvm_stop').removeClass('disabled');
-        $('.drupalVMHeaderStatus').text("Running");
-
-        drupalvm_running = true;
-      }
-
-      self.checkedStatus.resolve();
+      self.checkedState.resolve();
     });
   });
 
-  return this.checkedStatus.promise;
+  return this.checkedState.promise;
 };
 
 module.exports = DrupalVM;
