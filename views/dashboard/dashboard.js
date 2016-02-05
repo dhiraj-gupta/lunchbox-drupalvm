@@ -5,17 +5,9 @@ $(document).ready(function () {
 
   var drupalvm = window.active_plugin;
 
-  var status_el = $('#nav-' + drupalvm.unique_name + ' .title .drupalvm-status')
-  if (drupalvm.state & drupalvm._RUNNING) {
-    $('.drupalvm-start').addClass('disabled');
-    $('.drupalvm-stop').removeClass('disabled');
+  // updates UI depending on state
+  drupalvm.stateChange();
 
-    status_el.text('Running');
-  }
-  else if (drupalvm.state & drupalvm._STOPPED) {
-    $('.drupalvm-start').removeClass('disabled');
-    $('.drupalvm-stop').addClass('disabled');
-    
-    status_el.text('Stopped');
-  }
+  // vm-controling actions
+  drupalvm.bindEvents();
 });

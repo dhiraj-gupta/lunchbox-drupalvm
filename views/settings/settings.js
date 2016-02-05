@@ -65,7 +65,7 @@ $(document).ready(function () {
 
     // reload view & show notice
     reloadCurrentView(function (error) {
-      drupalvm.showReprovisionNotice();
+      drupalvm.showProvisionNotice();
     });
   };
 
