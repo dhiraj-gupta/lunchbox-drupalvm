@@ -135,20 +135,32 @@ var boot = {
           }
 
           if (item.regex) {
-            var matches = stdout.match(item.regex);
-            if (matches) {
-              var cv = require('compare-version');
 
-              // >= 0 is all good
-              if (cv(matches[1], item.version) < 0) {
-                deferred.reject(item.name + ' was found, but a newer version is required. Please upgrade ' + item.name + ' to version ' + item.version + ' or higher.');
+              // Some commands output multiple lines, go line by line.
+              // This way, just the line with the version can be displayed
+              var lines = stdout.trim().split('\n');
+              var found = false;
+              var cv = require('compare-version');
+              for (var line in lines) {
+                var currentLine = lines[line];
+                var matches = currentLine.match(item.regex);
+                if (matches) {
+
+                  // >= 0 is all good
+                  if (cv(matches[1], item.version) < 0) {
+                    deferred.reject(item.name + ' was found, but a newer version is required. Please upgrade ' + item.name + ' to version ' + item.version + ' or higher.');
+                    found = true;
+                    break;
+                  }
+
+                  item.found_version = matches[1];
+                  found = true;
+                }
               }
 
-              item.found_version = matches[1];
-            }
-            else {
-              deferred.reject(item.name + ' was found, but the version could not be determined.');
-            }
+              if (!found) {
+                deferred.reject(item.name + ' was found, but the version could not be determined.');
+              }
           }
 
           self.logDialog(item.name + ' found.');
