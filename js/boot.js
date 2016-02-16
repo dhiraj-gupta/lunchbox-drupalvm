@@ -167,6 +167,28 @@ var boot = {
           deferred.resolve(item);
         });
 
+        deferred.promise.then(function(data) {
+          // create the plugin object if it doesn't exist yet
+          if (!window.lunchbox_drupalvm_plugin) {
+            window.lunchbox_drupalvm_plugin = { dependencies: [] };
+          }
+
+          // add the dependency object to the array
+          window.lunchbox_drupalvm_plugin.dependencies.push(item);
+        },
+
+        function(err) {
+          // create the plugin object if it doesn't exist yet
+          if (!window.lunchbox_drupalvm_plugin) {
+            window.lunchbox_drupalvm_plugin = { dependencies: [] };
+          }
+
+          // add the error to the dependency object and
+          // add the dependency object to the array
+          item.error = err;
+          window.lunchbox_drupalvm_plugin.dependencies.push(item);
+        });
+
         return deferred.promise;
       });
     });
