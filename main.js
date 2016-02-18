@@ -235,7 +235,7 @@ DrupalVM.prototype.detect = function () {
 
     var cloneDrupalVM = function() {
       boxLog('Cloning DrupalVM');
-      var clone_path = './userData/drupalvm';
+      var clone_path = window.lunchbox.user_data_path + '/drupalvm';
       var git_path = 'https://github.com/geerlingguy/drupal-vm.git';
 
       boxLog('Cloning DrupalVM from ' + git_path);
