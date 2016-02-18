@@ -240,7 +240,6 @@ DrupalVM.prototype.detect = function () {
 
       boxLog('Cloning DrupalVM from ' + git_path);
 
-      var spawn = require('child_process').spawn;
       var child = spawn('git', ['clone', git_path, clone_path]);
 
       child.on('exit', function (exit_code) {
@@ -251,7 +250,6 @@ DrupalVM.prototype.detect = function () {
         }
 
         boxLog('Cloned DrupalVM to ' + clone_path);
-        var fs = require('fs');
         var setupConfigFile = function() {
           boxLog('Setting up config file');
           fs.readFile(clone_path + '/example.config.yml', 'utf-8', function(err, data) {
@@ -304,7 +302,6 @@ DrupalVM.prototype.detect = function () {
           path = path.slice(0, -1);
         }
 
-        var fs = require('fs');
         var checkPath = function() {
           boxLog('Checking if ' + path + ' is a valid directory');
           fs.lstat(path, function(err, stats) {
