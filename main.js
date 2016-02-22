@@ -256,7 +256,7 @@ DrupalVM.prototype.detect = function () {
             if (err) {
               boxLog(err);
             } else {
-              var newValue = data.replace('~/Sites/drupalvm', process.cwd() + '/drupalvm');
+              var newValue = data.replace('~/Sites/drupalvm', window.lunchbox.user_data_path + '/drupalvm');
               newValue = newValue.replace('build_makefile: true', 'build_makefile: false');
               fs.writeFile(clone_path + '/config.yml', newValue, 'utf-8', function(err) {
                 if (err) {
