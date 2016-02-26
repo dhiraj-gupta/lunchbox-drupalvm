@@ -375,16 +375,50 @@ DrupalVM.prototype.start = function () {
  * @return {[type]} [description]
  */
 DrupalVM.prototype.stop = function () {
+  var deferred = Q.defer();
+
   var self = this;
-
   if (this.state & this._RUNNING) {
-    this.control(this.CONTROL_STOP).then(function () {
-      console.log('stopped');
+    var dialog = load_mod('components/dialog').create('Stopping VM');
 
-      self.state -= self._RUNNING;
-      self.stateChange();
+    var sudo = require('sudo-prompt');
+
+    var options = {
+      name: 'DrupalVM',
+      onChildProcess: function (child) {
+        child.on('exit', function (exitCode) {
+          if (exitCode !== 0) {
+            deferred.reject('Could not stop VM. Exit code:' + exitCode);
+            return;
+          }
+
+          console.log('Finished STOP. Exit code: ' + exitCode);
+
+          self.state -= self._RUNNING;
+          self.stateChange();
+
+          deferred.resolve();
+        });
+      }
+    };
+
+    sudo.exec('vagrant halt ' + this.id, options, function (error, stdout, stderr) {
+      console.log('error:');
+      console.log(error);
+
+      console.log('');
+
+      console.log('stdout:');
+      console.log(stdout);
+
+      console.log('');
+
+      console.log('stderr:');
+      console.log(stderr);
     });
   }
+
+  return deferred.promise;
 };
 
 /**
@@ -411,10 +445,10 @@ DrupalVM.prototype.control = function (action) {
   var deferred = Q.defer();
   this.controlChain = this.controlChain.then(deferred.promise);
 
-  var creator_uid_path = this.home + '/.vagrant/machines/drupalvm/virtualbox/creator_uid';
-  var creator_uid = fs.readFileSync(creator_uid_path);
+  // var creator_uid_path = this.home + '/.vagrant/machines/drupalvm/virtualbox/creator_uid';
+  // var creator_uid = fs.readFileSync(creator_uid_path);
 
-  fs.writeFileSync(creator_uid_path, '0');
+  // fs.writeFileSync(creator_uid_path, '0');
 
   var self = this;
   var title = '';
@@ -487,7 +521,6 @@ DrupalVM.prototype.control = function (action) {
         break;
     }
   });
-
 
   // fs.writeFileSync(creator_uid_path, creator_uid);
 
