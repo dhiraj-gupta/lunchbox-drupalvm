@@ -49,16 +49,16 @@ var DrupalVM = function (plugin, dialog) {
   // default state
   this.state = 0;
 
-  // do we need to run provision?
-  if (this.plugin.settings.needs_provision) {
-    this.state += this._NEEDS_PROVISION;
-  }
-
   // set default settings structure
   if (!this.plugin.settings) {
     this.plugin.settings = {
       needs_provision: false
     };
+  }
+
+  // do we need to run provision?
+  if (this.plugin.settings.needs_provision) {
+    this.state += this._NEEDS_PROVISION;
   }
 
   // promises for later use
@@ -224,7 +224,250 @@ DrupalVM.prototype.detect = function () {
       }
     }
 
-    self.detected.reject('Could not find "drupalvm" VM.');
+    var boxLog = function(message) {
+      $('#drupalvm_plugin_dialog_log').append(message + '\n');
+    };
+
+    var resolveSetup = function(home_path) {
+      boxLog('Done setting up DrupalVM');
+      self.home = home_path;
+      self.detected.resolve();
+      setTimeout(function() {
+        box.modal('hide'); // only close if everything succeeds
+      }, 1000);
+    };
+
+    var cloneDrupalVM = function() {
+      boxLog('Cloning DrupalVM');
+      var clone_path = window.lunchbox.user_data_path + '/drupalvm';
+      var git_path = 'https://github.com/geerlingguy/drupal-vm.git';
+
+      boxLog('Cloning DrupalVM from ' + git_path);
+
+      var child = spawn('git', ['clone', git_path, clone_path]);
+
+      child.on('exit', function (exit_code) {
+
+        if (exit_code) {
+          boxLog('Could not clone DrupalVM Git repository to ' + clone_path);
+          return;
+        }
+
+        boxLog('Cloned DrupalVM to ' + clone_path);
+        var setupConfigFile = function() {
+          boxLog('Setting up config file');
+          fs.readFile(clone_path + '/example.config.yml', 'utf-8', function(err, data) {
+            if (err) {
+              boxLog(err);
+            } else {
+              var newValue = data.replace('~/Sites/drupalvm', window.lunchbox.user_data_path + '/drupalvm');
+              newValue = newValue.replace('build_makefile: true', 'build_makefile: false');
+              fs.writeFile(clone_path + '/config.yml', newValue, 'utf-8', function(err) {
+                if (err) {
+                  boxLog(err);
+                } else {
+                  setupMakeFile();
+                }
+              });
+            }
+          });
+        };
+
+        var setupMakeFile = function() {
+          boxLog('Setting up make file');
+          fs.readFile(clone_path + '/example.drupal.make.yml', 'utf-8', function(err, data) {
+            if (err) {
+              boxLog(err);
+              return;
+            }
+
+            fs.writeFile(clone_path + '/drupal.make.yml', data, 'utf-8', function(err) {
+              if (err) {
+                boxLog(err);
+                return;
+              }
+
+              resolveSetup(clone_path);
+            });
+          });
+        };
+
+        setupConfigFile();
+      });
+    };
+
+    var setDrupalVMLocation = function() {
+      bootbox.prompt("Please enter the full path to your DrupalVM directory.", function(path) {
+        if (path === null) {
+          return;
+        }
+
+        if (path.charAt(path.length - 1) == '/' || path.charAt(path.length - 1) == '\\') {
+          path = path.slice(0, -1);
+        }
+
+        var checkPath = function() {
+          boxLog('Checking if ' + path + ' is a valid directory');
+          fs.lstat(path, function(err, stats) {
+            if (err) {
+              boxLog(err);
+            } else if (!stats.isDirectory()) {
+              boxLog(path + ' is not a valid directory');
+            } else {
+              checkVagrantfile();
+            }
+          });
+        }; // checkPath
+
+        // make sure Vagrantfile exists
+        var checkVagrantfile = function() {
+          boxLog('Checking if Vagrantfile exists');
+          fs.lstat(path + '/Vagrantfile', function(err, stats) {
+            if (err) {
+              boxLog(err);
+            } else if (!stats.isFile()) {
+              boxLog('Vagrantfile does not exist at ' + path);
+            } else {
+              checkConfigFile();
+            }
+          });
+        }; // checkVagrantfile
+
+        // check if config file is already set up
+        var checkConfigFile = function() {
+          boxLog('Checking if configuration file exists');
+          fs.lstat(path + '/config.yml', function(err, stats) {
+            if (err) {
+              boxLog(err);
+            } else if (!stats.isFile()) {
+              checkExampleConfigFile();
+            } else {
+              checkMakeFile();
+            }
+          });
+        }; // checkConfigFile
+
+        // make sure the example config file exists
+        var checkExampleConfigFile = function() {
+          boxLog('Checking if example configuration file exists');
+          fs.lstat(path + '/example.config.yml', function(err, stats) {
+            if (err) {
+              boxLog(err);
+            } else if (!stats.isFile()) {
+              boxLog('Could not locate configuration file at ' + path);
+            } else {
+              generateConfigFile();
+            }
+          });
+        }; // checkExampleConfigFile
+
+        // generate config file from example
+        var generateConfigFile = function() {
+          boxLog('Setting up configuration file from example file');
+          fs.readFile(path + '/example.config.yml', 'utf-8', function(err, data) {
+            if (err) {
+              boxLog(err);
+              return;
+            }
+
+            var newValue = data.replace('~/Sites/drupalvm', process.cwd() + '/drupalvm');
+            newValue = newValue.replace('build_makefile: true', 'build_makefile: false');
+            fs.writeFile(path + '/config.yml', newValue, 'utf-8', function(err) {
+              if (err) {
+                boxLog(err);
+                return;
+              }
+
+              checkMakeFile();
+            })
+          });
+        }; // generateConfigFile
+
+        // check if make file is already set up
+        var checkMakeFile = function() {
+          boxLog('Checking if make file exists');
+          fs.lstat(path + '/drupal.make.yml', function(err, stats) {
+            if (err) {
+              boxLog(err);
+            } else if (!stats.isFile()) {
+              checkExampleMakeFile();
+            } else {
+              resolveSetup(path);
+            }
+          });
+        }; // checkMakeFile
+
+        // make sure the example make file exists
+        var checkExampleMakeFile = function() {
+          boxLog('Checking if example make file exists');
+          fs.lstat(path + '/example.drupal.make.yml', function(err, stats) {
+            if (err) {
+              boxLog(err);
+            } else if (!stats.isFile()) {
+              boxLog('Could not locate make file at ' + path);
+            } else {
+              generateMakeFile();
+            }
+          });
+        }; // checkExampleMakeFile
+
+        // generate make file from example
+        var generateMakeFile = function() {
+          boxLog('Setting up make file from example file');
+          fs.readFile(path + '/example.drupal.make.yml', 'utf-8', function(err, data) {
+            if (err) {
+              boxLog(err);
+              return;
+            }
+
+            fs.writeFile(path + '/drupal.make.yml', data, 'utf-8', function(err) {
+              if (err) {
+                boxLog(err);
+                return;
+              }
+
+              resolveSetup(path);
+            });
+          });
+        }; // generateMakeFile
+
+        checkPath();
+      }); // bootbox.prompt
+    };
+
+    var box = bootbox.dialog({
+      closeButton: false,
+      title: 'Could not find "drupalvm" virtualbox.',
+      message: ''
+        + '<div>'
+        +   '<label for="btnClone">Clone DrupalVM from GitHub? </label>'
+        +   '<button id="btnClone" class="btn btn-primary" style="float: right;">Clone</button>'
+        + '</div>'
+        + '<hr/>'
+        + '<div>'
+        +   '<label for="btnSetLoc">Show us where DrupalVM is installed? </label>'
+        +   '<button id="btnSetLoc" class="btn btn-primary" style="float: right;">Set Location</button>'
+        + '</div>'
+        + '<hr/>'
+        + '<pre id="drupalvm_plugin_dialog_log"></pre>'
+        + '',
+      buttons: {
+        cancel: {
+          label: "Cancel",
+          className: "btn-default",
+          callback: function () {
+            self.detected.reject('Could not find "drupalvm" VM.');
+          }
+        }
+      }
+    });
+
+    $('#btnClone').on('click', function() {
+      cloneDrupalVM();
+    });
+    $('#btnSetLoc').on('click', function() {
+      setDrupalVMLocation();
+    });
   });
 
   return this.detected.promise;
