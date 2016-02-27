@@ -10,6 +10,10 @@ var boot = require('./js/boot.js');
  * @param {[type]} dialog [description]
  */
 var DrupalVM = function (plugin, dialog) {
+  if (typeof plugin.settings == 'undefined') {
+    plugin.settings = {};
+  }
+
   // call parent constructor
   LunchboxPlugin.call(this, plugin, dialog);
 
