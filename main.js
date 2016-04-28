@@ -676,11 +676,11 @@ DrupalVM.prototype.stop = function () {
 DrupalVM.prototype.provision = function () {
   var self = this;
 
-  if (this.state & this._NEEDS_REPROVISION) {
+  if (this.state & this._NEEDS_PROVISION) {
     this.control(this.CONTROL_PROVISION).then(function () {
       console.log('finished provisioning');
 
-      self.state -= self._NEEDS_REPROVISION;
+      self.state -= self._NEEDS_PROVISION;
       self.stateChange();
 
       self.hideProvisionNotice();
