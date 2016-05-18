@@ -99,10 +99,13 @@ var boot = {
 
     // create the plugin object if it doesn't exist yet
     if (!window.lunchbox_drupalvm_plugin) {
-      window.lunchbox_drupalvm_plugin = { dependencies: [] };
-    } else {
-      window.lunchbox_drupalvm_plugin.dependencies = [];
+      window.lunchbox_drupalvm_plugin = { 
+        dependencies: [] 
+      };
     }
+
+    // ensure we're starting with a clean slate
+    window.lunchbox_drupalvm_plugin.dependencies = [];
 
     software.forEach(function (item) {
       chain.then(function () {
@@ -142,7 +145,6 @@ var boot = {
           }
 
           if (item.regex) {
-
               // Some commands output multiple lines, go line by line.
               // This way, just the line with the version can be displayed
               var lines = stdout.trim().split('\n');
