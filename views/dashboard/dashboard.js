@@ -40,7 +40,8 @@ $(document).ready(function () {
       // Output the required version and any errors
       td.text('Minimum required version: ' + dependency.version);
       td.append('<p>' + dependency.error + '</p>');
-    } else {
+    }
+    else {
       th.text(dependency.name);
       td.append('Current version (as determined by <em>' + dependency.command + '</em>):');
       td.append('<p>' + dependency.found_version + '</p>');
@@ -71,8 +72,8 @@ $(document).ready(function () {
               tmp += val2 + ' ';
             });
             tmp += '</li></ul>';
-          } else {
-
+          }
+          else {
             // not an array, so just add it to the help text
             tmp += '<ul><li>' + val1 + '</li></ul>';
           }
@@ -84,11 +85,12 @@ $(document).ready(function () {
 
       // regardless of help's original type, add required version before text
       help = "Please install version " + dependency.version + " of " + dependency.name + '<br/>' + help;
-    } else {
-
+    }
+    else {
       // help information does not exist, just display required version
       help = "Please install version " + dependency.version + " of " + dependency.name;
     }
+    
     bootbox.dialog({
       title: name,
       message: help

@@ -247,7 +247,6 @@ DrupalVM.prototype.detect = function () {
       var child = spawn('git', ['clone', git_path, clone_path]);
 
       child.on('exit', function (exit_code) {
-
         if (exit_code) {
           boxLog('Could not clone DrupalVM Git repository to ' + clone_path);
           return;
@@ -259,13 +258,15 @@ DrupalVM.prototype.detect = function () {
           fs.readFile(clone_path + '/example.config.yml', 'utf-8', function(err, data) {
             if (err) {
               boxLog(err);
-            } else {
+            }
+            else {
               var newValue = data.replace('~/Sites/drupalvm', window.lunchbox.user_data_path + '/drupalvm');
               newValue = newValue.replace('build_makefile: true', 'build_makefile: false');
               fs.writeFile(clone_path + '/config.yml', newValue, 'utf-8', function(err) {
                 if (err) {
                   boxLog(err);
-                } else {
+                }
+                else {
                   setupMakeFile();
                 }
               });
@@ -297,7 +298,7 @@ DrupalVM.prototype.detect = function () {
     };
 
     var setDrupalVMLocation = function() {
-      bootbox.prompt("Please enter the full path to your DrupalVM directory.", function(path) {
+      bootbox.prompt('Please enter the full path to your DrupalVM directory.', function(path) {
         if (path === null) {
           return;
         }
@@ -311,9 +312,11 @@ DrupalVM.prototype.detect = function () {
           fs.lstat(path, function(err, stats) {
             if (err) {
               boxLog(err);
-            } else if (!stats.isDirectory()) {
+            }
+            else if (!stats.isDirectory()) {
               boxLog(path + ' is not a valid directory');
-            } else {
+            }
+            else {
               checkVagrantfile();
             }
           });
@@ -325,9 +328,11 @@ DrupalVM.prototype.detect = function () {
           fs.lstat(path + '/Vagrantfile', function(err, stats) {
             if (err) {
               boxLog(err);
-            } else if (!stats.isFile()) {
+            }
+            else if (!stats.isFile()) {
               boxLog('Vagrantfile does not exist at ' + path);
-            } else {
+            }
+            else {
               checkConfigFile();
             }
           });
@@ -339,9 +344,11 @@ DrupalVM.prototype.detect = function () {
           fs.lstat(path + '/config.yml', function(err, stats) {
             if (err) {
               boxLog(err);
-            } else if (!stats.isFile()) {
+            }
+            else if (!stats.isFile()) {
               checkExampleConfigFile();
-            } else {
+            }
+            else {
               checkMakeFile();
             }
           });
@@ -353,9 +360,11 @@ DrupalVM.prototype.detect = function () {
           fs.lstat(path + '/example.config.yml', function(err, stats) {
             if (err) {
               boxLog(err);
-            } else if (!stats.isFile()) {
+            }
+            else if (!stats.isFile()) {
               boxLog('Could not locate configuration file at ' + path);
-            } else {
+            }
+            else {
               generateConfigFile();
             }
           });
@@ -389,9 +398,11 @@ DrupalVM.prototype.detect = function () {
           fs.lstat(path + '/drupal.make.yml', function(err, stats) {
             if (err) {
               boxLog(err);
-            } else if (!stats.isFile()) {
+            }
+            else if (!stats.isFile()) {
               checkExampleMakeFile();
-            } else {
+            }
+            else {
               resolveSetup(path);
             }
           });
@@ -403,9 +414,11 @@ DrupalVM.prototype.detect = function () {
           fs.lstat(path + '/example.drupal.make.yml', function(err, stats) {
             if (err) {
               boxLog(err);
-            } else if (!stats.isFile()) {
+            }
+            else if (!stats.isFile()) {
               boxLog('Could not locate make file at ' + path);
-            } else {
+            }
+            else {
               generateMakeFile();
             }
           });
@@ -465,6 +478,7 @@ DrupalVM.prototype.detect = function () {
     $('#btnClone').on('click', function() {
       cloneDrupalVM();
     });
+    
     $('#btnSetLoc').on('click', function() {
       setDrupalVMLocation();
     });
