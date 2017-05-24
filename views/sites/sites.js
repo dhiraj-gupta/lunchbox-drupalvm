@@ -30,7 +30,7 @@ $(document).ready(function () {
               var composer  = wrapper.find('input[name="composer"]:checked').val() == 'true' ? true : false;
               var webroot   = wrapper.find('input[name="webroot"]').val();
 
-              createSite(name.toLowerCase(), git_url, composer, webroot);
+              createSite(name.toLowerCase(), git_url, composer, webroot, drupalvm.home);
             }
           }
         }
@@ -64,6 +64,7 @@ $(document).ready(function () {
    */
   function buildRow(servername) {
     var shell = require('shell');
+    var drupalvm = window.active_plugin;
 
     // TODO: will this work with subdomains?
     var name = servername.split(".")[0];
@@ -75,7 +76,7 @@ $(document).ready(function () {
     template += '<td>' + name + '</td>';
     template += '<td class="drupalvm_sites_icons">';
     template += '  <a href="https://github.com" class="openExternal"><i class="fa fa-2 fa-git"></i></a>';
-    template += '  <a href="#" class="placeholder" placeholder="When implemented, this will run \'composer install\' to initialize the project."><i class="fa fa-2 fa-arrow-down"></i></a>'; // TODO: implement composer install
+    template += '  <a href="#" class="installsite"><i class="fa fa-2 fa-arrow-down"></i></a>'; // TODO: implement composer install
     template += '</td>';
     template += '<td class="drupalvm_sites_icons">';
     template += '  <a href="#" class="placeholder" placeholder="When implemented, this button will allow you to edit this site entry."><i class="fa fa-2 fa-pencil"></i></a>';
@@ -86,6 +87,10 @@ $(document).ready(function () {
 
     tr.find('.remove').click(function (e) {
       promptDeleteDetails(name);
+    });
+
+    tr.find('.installsite').click(function (e) {
+      runDrushInstallation(drupalvm.home + '/' + name, name);
     });
 
     return tr;
@@ -100,13 +105,19 @@ $(document).ready(function () {
    * @param  {[type]} webroot  [description]
    * @return {[type]}          [description]
    */
-  function createSite (name, git_url, composer, webroot) {
+  function createSite (name, git_url, composer, webroot, local_vm_path) {
     // create the directory
     var fs = require('fs');
-    var dir = vm_config.vagrant_synced_folders[0].local_path + '/' + name;
+    //var dir = vm_config.vagrant_synced_folders[0].local_path + '/' + name
+    var dir = local_vm_path + '/' + name;
+    var branch = '8.3.x';
+
+    if(!composer){
+      var branch = '7.x';
+    }
 
     if (git_url) {
-      cloneGIT(dir, git_url).then(function () {
+      cloneGIT(dir, git_url, branch).then(function () {
         if (composer) {
           runComposer(dir);
         }
@@ -125,18 +136,24 @@ $(document).ready(function () {
     vhost.documentroot = "/var/www/" + name + "/" + webroot;
     vm_config.apache_vhosts.push(vhost);
 
-    // Create the database
-    var db = new Object();
-    db.name = name;
-    db.encoding = "utf8";
-    db.collation = "utf8_general_ci";
-    vm_config.mysql_databases.push(db);
-
+    if(composer){
+      // Create the database
+      var db = new Object();
+      db.name = name;
+      db.encoding = "utf8";
+      db.collation = "utf8_general_ci";
+      vm_config.mysql_databases.push(db);
+    }
+    
     vm_config.save(function (error) {
       if (error !== null) {
         console.log('Error: ' + error);
         return;
       }
+
+      /*if(!composer) {
+        runDrushInstallation(dir, name);
+      }*/
 
       reloadCurrentView();
     });
@@ -150,11 +167,12 @@ $(document).ready(function () {
    * @param  {[type]} composer [description]
    * @return {[type]}          [description]
    */
-  function cloneGIT (dir, git_url) {
+  function cloneGIT (dir, git_url, branch) {
     var deferred = Q.defer();
-
+    console.log(dir);
+    console.log(branch);
     var spawn = require('child_process').spawn;
-    var child = spawn('git', ['clone', git_url, dir]);
+    var child = spawn('git', ['clone', '--branch', branch , git_url, dir]);
 
     var stdout = '';
     var dialog = load_mod('components/dialog').create('Cloning from git ...');
@@ -200,6 +218,48 @@ $(document).ready(function () {
     child.on('exit', function (exit_code) {
       if (exit_code) {
         deferred.reject('Encountered error while running "composer install". Error code: ' + exit_code + '.');
+        return;
+      }
+
+      deferred.resolve();
+      dialog.hide();
+    });
+
+    return deferred.promise;
+  }
+
+  /**
+   * Runs 'drush site-install' in given directory.
+   * 
+   * @param  {[type]} dir [description]
+   * @return {[type]}     [description]
+   */
+  function runDrushInstallation (dir, name) {
+    var deferred = Q.defer();
+    
+    var name = name.replace(/\-/gi, "_");
+    console.log('DB name' + name);
+
+    var db_string = '--db-url=mysql://root:root@127.0.0.1/'+ name;
+    
+    var spawn = require('child_process').spawn;
+    var child = spawn('drush', [
+      'si',
+      'standard',
+      db_string,
+      '-y',
+      '--debug'
+      // '--dev' // commented out as this is deprecated
+    ],{
+        cwd: dir
+      });
+
+    var dialog = load_mod('components/dialog').create('Running drush site install...');
+    dialog.logProcess(child);
+
+    child.on('exit', function (exit_code) {
+      if (exit_code) {
+        deferred.reject('Encountered error while running "drush si". Error code: ' + exit_code + '.');
         return;
       }
 

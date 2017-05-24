@@ -214,7 +214,9 @@ DrupalVM.prototype.detect = function () {
         self.id = parts[0];
         self.name = parts[1];
         self.home = parts[4];
-
+        if(parts[5] !='' && typeof parts[5] !='undefined') {
+          self.home += ' ' + parts[5];
+        }
         self.state += parts[3] == 'running' ? self._RUNNING : 0;
         self.stateChange();
 
@@ -494,11 +496,13 @@ DrupalVM.prototype.detect = function () {
  */
 DrupalVM.prototype.loadConfig = function () {
   var self = this;
+  var Path = require('path');
 
   // VM must first be detected so we have the home path
   this.detected.promise.then(function () {
-    self.config = new GenericSettings(self.home + '/config.yml');
-
+    console.log(self.home);
+    self.config = new GenericSettings(Path.join(self.home , '/config.yml'));
+    console.log(self.config);
     self.config.load(function (error, data) {
       if (error !== null) {
         self.loadedConfig.reject(error);
@@ -621,7 +625,7 @@ DrupalVM.prototype.start = function () {
   var self = this;
 
   if (!(this.state & this._RUNNING)) {
-    this.control(this.CONTROL_STOP).then(function () {
+    this.control(this.CONTROL_START).then(function () {
       console.log('started');
 
       self.state += self._RUNNING;
@@ -640,14 +644,24 @@ DrupalVM.prototype.stop = function () {
 
   var self = this;
   if (this.state & this._RUNNING) {
-    var dialog = load_mod('components/dialog').create('Stopping VM');
+    this.control(this.CONTROL_STOP).then(function () {
+      console.log('Stopping VM');
+
+      self.state -= self._RUNNING;
+          self.stateChange();
+
+          deferred.resolve();
+    });
+
+    /*var dialog = load_mod('components/dialog').create('Stopping VM');
 
     var sudo = require('sudo-prompt');
 
     var options = {
-      name: 'DrupalVM',
+      name: 'drupalvm',
       onChildProcess: function (child) {
         child.on('exit', function (exitCode) {
+          console.log(exitCode);
           if (exitCode !== 0) {
             deferred.reject('Could not stop VM. Exit code:' + exitCode);
             return;
@@ -663,6 +677,10 @@ DrupalVM.prototype.stop = function () {
       }
     };
 
+    if(typeof this.id == 'undefined'){
+      this.id = 'drupalvm';
+    }
+    console.log(this.id);
     sudo.exec('vagrant halt ' + this.id, options, function (error, stdout, stderr) {
       console.log('error:');
       console.log(error);
@@ -676,7 +694,7 @@ DrupalVM.prototype.stop = function () {
 
       console.log('stderr:');
       console.log(stderr);
-    });
+    });*/
   }
 
   return deferred.promise;
@@ -689,7 +707,8 @@ DrupalVM.prototype.stop = function () {
  */
 DrupalVM.prototype.provision = function () {
   var self = this;
-
+  console.log(this.state);
+  console.log('Provisioning ' + this._NEEDS_PROVISION);
   if (this.state & this._NEEDS_PROVISION) {
     this.control(this.CONTROL_PROVISION).then(function () {
       console.log('finished provisioning');
@@ -706,15 +725,15 @@ DrupalVM.prototype.control = function (action) {
   var deferred = Q.defer();
   this.controlChain = this.controlChain.then(deferred.promise);
 
-  // var creator_uid_path = this.home + '/.vagrant/machines/drupalvm/virtualbox/creator_uid';
-  // var creator_uid = fs.readFileSync(creator_uid_path);
+   //var creator_uid_path = this.home + '/.vagrant/machines/drupalvm/virtualbox/creator_uid';
+   //var creator_uid = fs.readFileSync(creator_uid_path);
 
-  // fs.writeFileSync(creator_uid_path, '0');
+   //fs.writeFileSync(creator_uid_path, '0');
 
   var self = this;
   var title = '';
   var cmd = '';
-
+  console.log('Action ' + action);
   switch (action) {
     case this.CONTROL_START:
       cmd = 'up'
@@ -737,8 +756,15 @@ DrupalVM.prototype.control = function (action) {
       break;
   }
 
+  if(typeof this.id == 'undefined'){
+    this.id = 'drupalvm';
+  }
+  console.log(this.home);
   var spawn = require('child_process').spawn;
-  var child = spawn('sudo', ['-S', 'vagrant', cmd, this.id]);
+  var child_change_dir = spawn('cd', [ this.home ]);
+  var child = spawn('sudo', ['-S', 'vagrant', cmd, this.id], {
+    cwd: this.home
+  });
 
   console.log('running: vagrant ' + cmd + ' ' + this.id);
 
@@ -783,7 +809,7 @@ DrupalVM.prototype.control = function (action) {
     }
   });
 
-  // fs.writeFileSync(creator_uid_path, creator_uid);
+   //fs.writeFileSync(creator_uid_path, creator_uid);
 
   return this.controlChain;
 };
